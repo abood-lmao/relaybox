@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<notification type="invoice.paid">
+  <invoice id="inv_example_2026_0042">
+    <customer>cus_example_001</customer>
+    <amount currency="EUR">120.00</amount>
+    <paid_at>2026-10-10T09:15:00Z</paid_at>
+  </invoice>
+</notification>

@@ -1,0 +1,3 @@
+Receipt ord_1042
+Example Store
+1 x Coffee beans, 1 kg    59.99 USD

@@ -1,0 +1,56 @@
+{
+  "format": "relaybox.fixture",
+  "version": 1,
+  "exported_at": "2026-10-10T09:30:00Z",
+  "generator": "relaybox examples",
+  "notice": "Made-up sample data for trying out Relaybox.",
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/sms/status",
+      "headers": [["Content-Type", "application/x-www-form-urlencoded"]],
+      "body": {
+        "encoding": "utf8",
+        "data": "MessageId=SM_example_02&MessageStatus=undelivered&To=%2B15555550100&From=%2B15555550199&ErrorCode=30003"
+      },
+      "received_at": "2026-10-10T09:16:00Z"
+    },
+    {
+      "method": "POST",
+      "path": "/uploads",
+      "headers": [["Content-Type", "multipart/form-data; boundary=example-boundary"]],
+      "body": {
+        "encoding": "utf8",
+        "data": "--example-boundary\r\nContent-Disposition: form-data; name=\"order_id\"\r\n\r\nord_1042\r\n--example-boundary\r\nContent-Disposition: form-data; name=\"receipt\"; filename=\"receipt.txt\"\r\nContent-Type: text/plain\r\n\r\nReceipt ord_1042\nExample Store\n1 x Coffee beans, 1 kg    59.99 USD\n\r\n--example-boundary--\r\n"
+      },
+      "received_at": "2026-10-10T09:17:00Z"
+    },
+    {
+      "method": "POST",
+      "path": "/images",
+      "headers": [["Content-Type", "image/png"]],
+      "body": {
+        "encoding": "base64",
+        "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+      },
+      "received_at": "2026-10-10T09:18:00Z"
+    },
+    {
+      "method": "PUT",
+      "path": "/orders/ord_1042/status",
+      "headers": [["Content-Type", "application/xml"]],
+      "body": {
+        "encoding": "utf8",
+        "data": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<status order=\"ord_1042\">shipped</status>\n"
+      },
+      "received_at": "2026-10-10T09:19:00Z"
+    },
+    {
+      "method": "GET",
+      "path": "/ping",
+      "query": "event=ping&page=2",
+      "headers": [["User-Agent", "ExampleMonitor/3.0"]],
+      "received_at": "2026-10-10T09:20:00Z"
+    }
+  ]
+}

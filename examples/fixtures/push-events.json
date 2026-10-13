@@ -1,0 +1,41 @@
+{
+  "format": "relaybox.fixture",
+  "version": 1,
+  "exported_at": "2026-10-10T09:30:00Z",
+  "generator": "relaybox examples",
+  "notice": "Made-up sample data for trying out Relaybox.",
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/git",
+      "headers": [
+        ["Content-Type", "application/json"],
+        ["User-Agent", "ExampleHookshot/1.0"],
+        ["X-GitHub-Delivery", "5b0c2e10-cc78-11e3-8f2a-4c9367dc0958"],
+        ["X-GitHub-Event", "ping"],
+        ["X-Hub-Signature-256", "sha256=2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"]
+      ],
+      "body": {
+        "encoding": "utf8",
+        "data": "{\"zen\":\"Design for failure.\",\"hook_id\":12345678,\"hook\":{\"type\":\"Repository\",\"events\":[\"push\",\"pull_request\"],\"active\":true,\"config\":{\"content_type\":\"json\",\"insecure_ssl\":\"0\",\"url\":\"https://hooks.example.com/git\"}},\"repository\":{\"id\":1296269,\"full_name\":\"example-org/example-repo\"}}"
+      },
+      "received_at": "2026-10-10T09:10:00Z"
+    },
+    {
+      "method": "POST",
+      "path": "/git",
+      "headers": [
+        ["Content-Type", "application/json"],
+        ["User-Agent", "ExampleHookshot/1.0"],
+        ["X-GitHub-Delivery", "72d3162e-cc78-11e3-81ab-4c9367dc0958"],
+        ["X-GitHub-Event", "push"],
+        ["X-Hub-Signature-256", "sha256=7d38cdd689735b008b3c702edd92eea23791c5f6a3c4c1f2b5d8a9e0f1b2c3d4"]
+      ],
+      "body": {
+        "encoding": "utf8",
+        "data": "{\"ref\":\"refs/heads/main\",\"before\":\"6113728f27ae82c7b1a177c8d03f9e96e0adf246\",\"after\":\"59b20b8d5c6ff8d09518454d4dd8b7a30f095ab5\",\"repository\":{\"id\":1296269,\"full_name\":\"example-org/example-repo\",\"private\":false,\"default_branch\":\"main\"},\"pusher\":{\"name\":\"octo-example\",\"email\":\"octo@example.com\"},\"commits\":[{\"id\":\"59b20b8d5c6ff8d09518454d4dd8b7a30f095ab5\",\"message\":\"Fix retry delay for failed deliveries\",\"timestamp\":\"2026-10-10T09:14:03Z\",\"added\":[],\"removed\":[],\"modified\":[\"internal/delivery/retry.go\"]}]}"
+      },
+      "received_at": "2026-10-10T09:14:05Z"
+    }
+  ]
+}

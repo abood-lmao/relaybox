@@ -1,0 +1,1169 @@
+openapi: 3.1.0
+info:
+  title: Relaybox API
+  version: "1"
+  summary: Capture, inspect, and debug webhooks.
+  description: |
+    The Relaybox dashboard is built on this API. All routes live under `/api/v1`,
+    except the health checks and the capture endpoints (`/hooks/{public_id}`).
+
+    **Access.** By default the API only answers requests from the same machine
+    (loopback addresses, with a `localhost` or loopback `Host` header). When the
+    server runs with `RELAYBOX_ALLOW_REMOTE_DASHBOARD=true`, every route except
+    the health checks and `/api/v1/auth/*` requires either the session cookie set
+    by `POST /api/v1/auth/login` or an `Authorization: Bearer <token>` header.
+
+    **Cross-origin requests.** State-changing requests sent by browsers from
+    other origins are rejected. Request bodies must be JSON
+    (`Content-Type: application/json`).
+
+    **Errors.** Every error has the same shape (see `Error`). Validation
+    problems return 422 with a `fields` map; invalid fixtures return 422 with a
+    `details` list.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: http://127.0.0.1:8787
+    description: Default local address
+security:
+  - {}
+  - sessionCookie: []
+  - bearerToken: []
+tags:
+  - name: Health
+  - name: Endpoints
+  - name: Requests
+  - name: Replay
+  - name: Comparison
+  - name: Fixtures
+  - name: Settings
+  - name: Events
+  - name: Auth
+  - name: Capture
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Liveness check
+      security: [{}]
+      responses:
+        "200":
+          description: The process is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, const: ok }
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness check
+      description: Verifies that the database answers queries.
+      security: [{}]
+      responses:
+        "200":
+          description: Ready.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, const: ready }
+                  database: { type: string, const: ok }
+        "503":
+          description: The database is unavailable.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, const: unavailable }
+                  database: { type: string }
+
+  /hooks/{public_id}:
+    parameters:
+      - $ref: "#/components/parameters/PublicID"
+    get: { $ref: "#/components/x-capture-operation" }
+    head: { $ref: "#/components/x-capture-operation" }
+    post: { $ref: "#/components/x-capture-operation" }
+    put: { $ref: "#/components/x-capture-operation" }
+    patch: { $ref: "#/components/x-capture-operation" }
+    delete: { $ref: "#/components/x-capture-operation" }
+    options: { $ref: "#/components/x-capture-operation" }
+  /hooks/{public_id}/{path}:
+    parameters:
+      - $ref: "#/components/parameters/PublicID"
+      - name: path
+        in: path
+        required: true
+        description: Any sub-path. It is recorded with the request.
+        schema: { type: string }
+    post: { $ref: "#/components/x-capture-operation" }
+
+  /api/v1/meta:
+    get:
+      tags: [Settings]
+      summary: Server information for the dashboard
+      responses:
+        "200":
+          description: Version, URLs, defaults, and limits.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meta" }
+  /api/v1/stats:
+    get:
+      tags: [Requests]
+      summary: Overview statistics
+      responses:
+        "200":
+          description: Counts computed from stored requests.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Stats" }
+
+  /api/v1/endpoints:
+    get:
+      tags: [Endpoints]
+      summary: List endpoints
+      responses:
+        "200":
+          description: All endpoints, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Endpoint" }
+    post:
+      tags: [Endpoints]
+      summary: Create an endpoint
+      description: The endpoint gets a new random public identifier (26 characters, 128 bits).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EndpointCreate" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Endpoint" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        default: { $ref: "#/components/responses/Error" }
+  /api/v1/endpoints/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [Endpoints]
+      summary: Get an endpoint
+      responses:
+        "200":
+          description: The endpoint.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Endpoint" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Endpoints]
+      summary: Update an endpoint
+      description: Changes apply to the next request the endpoint receives.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EndpointUpdate" }
+      responses:
+        "200":
+          description: The updated endpoint.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Endpoint" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    delete:
+      tags: [Endpoints]
+      summary: Delete an endpoint and its requests
+      description: Deletes the endpoint, every request captured on it, and their replay history. This cannot be undone.
+      responses:
+        "200":
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_requests: { type: integer }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/endpoints/{id}/rotate-url:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [Endpoints]
+      summary: Replace the endpoint's public identifier
+      description: The old URL stops working immediately. Captured requests are kept.
+      responses:
+        "200":
+          description: The endpoint with its new URL.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Endpoint" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/mock-preview:
+    post:
+      tags: [Endpoints]
+      summary: Preview a mock response
+      description: Validates a mock response and returns the exact response a sender would receive. Nothing is saved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mock_response]
+              properties:
+                mock_response: { $ref: "#/components/schemas/MockResponse" }
+                method:
+                  type: string
+                  description: Request method to preview for (HEAD and OPTIONS change the response). Defaults to POST.
+      responses:
+        "200":
+          description: The response.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Response" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /api/v1/requests:
+    get:
+      tags: [Requests]
+      summary: List captured requests
+      description: Server-side pagination with filters. Search matches the path, query string, headers, content type, and body text; a number also matches the request ID.
+      parameters:
+        - { name: endpoint_id, in: query, schema: { type: integer, minimum: 1 } }
+        - name: method
+          in: query
+          description: Comma-separated methods.
+          schema: { type: string, example: "POST,PUT" }
+        - name: status
+          in: query
+          description: Comma-separated codes or classes.
+          schema: { type: string, example: "2xx,404" }
+        - name: source
+          in: query
+          description: Comma-separated sources.
+          schema: { type: string, example: "capture,replay" }
+        - name: from
+          in: query
+          description: RFC 3339 timestamp or YYYY-MM-DD date (inclusive).
+          schema: { type: string }
+        - name: to
+          in: query
+          description: RFC 3339 timestamp or YYYY-MM-DD date (inclusive; a date covers the whole day).
+          schema: { type: string }
+        - { name: q, in: query, schema: { type: string, maxLength: 200 } }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [received_at, duration, size, status, method], default: received_at }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        "200":
+          description: One page of results.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/RequestSummary" }
+                  total: { type: integer }
+                  limit: { type: integer }
+                  offset: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    delete:
+      tags: [Requests]
+      summary: Delete requests in bulk
+      description: |
+        The `scope` parameter is required, so a missing parameter can never widen
+        the deletion. The dashboard asks for confirmation before calling this.
+      parameters:
+        - name: scope
+          in: query
+          required: true
+          schema: { type: string, enum: [all, endpoint, ids] }
+        - name: endpoint_id
+          in: query
+          description: Required with scope=endpoint.
+          schema: { type: integer }
+        - name: ids
+          in: query
+          description: Comma-separated request IDs (up to 1000). Required with scope=ids.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Number of deleted requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/requests/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [Requests]
+      summary: Get a captured request
+      responses:
+        "200":
+          description: The request, the response Relaybox sent, and related replays.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RequestDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Requests]
+      summary: Delete a captured request
+      responses:
+        "204": { description: Deleted. }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/requests/{id}/body:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [Requests]
+      summary: Download a raw body
+      description: Always served as an attachment with `Content-Type: application/octet-stream`, never rendered inline.
+      parameters:
+        - { name: part, in: query, schema: { type: string, enum: [request, response], default: request } }
+      responses:
+        "200":
+          description: The body bytes.
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/requests/{id}/replay:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [Replay]
+      summary: Get the default replay for a request
+      description: Lists the captured headers with their default selection and the body that a replay would send.
+      responses:
+        "200":
+          description: Replay defaults.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReplayDraft" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Replay]
+      summary: Replay a request
+      description: |
+        Sends the request to a URL or records it in another endpoint. Replays never
+        happen automatically.
+
+        URL destinations must resolve only to public addresses, unless the exact
+        `host:port` is listed in `RELAYBOX_REPLAY_ALLOWED_HOSTS` (local dashboards
+        only). Cloud metadata addresses are always blocked. Redirects are returned,
+        not followed. TLS certificates are always verified. Responses are read up
+        to 1 MiB and the request times out after 30 seconds.
+
+        URL replays need `"confirmed": true`; without it the API answers 409
+        `confirmation_required`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReplayInput" }
+      responses:
+        "200":
+          description: The replay ran. `attempt.outcome` says whether it succeeded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReplayResult" }
+        "403":
+          description: URL replay is disabled for remote dashboards (`replay_disabled`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`confirmation_required`, `body_truncated`, or `endpoint_disabled`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+        "429":
+          description: Too many replays are running (`busy`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/v1/requests/{id}/replays:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [Replay]
+      summary: Replay history
+      responses:
+        "200":
+          description: The 50 most recent replay attempts, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ReplayAttempt" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/requests/{id}/export:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [Fixtures]
+      summary: Export one request as a fixture
+      description: The current redaction rules are applied again. Endpoint URLs, internal IDs, the Host header, and sender addresses are left out.
+      parameters:
+        - { name: include_body, in: query, schema: { type: boolean, default: true } }
+      responses:
+        "200":
+          description: Fixture file (downloaded as an attachment).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Fixture" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/requests/compare:
+    post:
+      tags: [Comparison]
+      summary: Compare two requests
+      description: |
+        JSON bodies are compared structurally. Object keys are matched by name;
+        arrays are compared index by index, so an element inserted near the start
+        shows up as changes to every later index. If either body is not valid JSON,
+        the bodies are compared line by line and the parse error is reported.
+        Binary bodies are only checked for equality.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [left_id, right_id]
+              properties:
+                left_id: { type: integer }
+                right_id: { type: integer }
+                part: { type: string, enum: [request, response], default: request }
+      responses:
+        "200":
+          description: Differences.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comparison" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/fixtures/export:
+    post:
+      tags: [Fixtures]
+      summary: Export several requests as a fixture
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                request_ids:
+                  type: array
+                  maxItems: 1000
+                  items: { type: integer }
+                endpoint_id:
+                  type: integer
+                  description: Export the latest requests of this endpoint (used when request_ids is empty).
+                limit: { type: integer, minimum: 1, maximum: 1000, default: 100 }
+                include_bodies: { type: boolean, default: true }
+      responses:
+        "200":
+          description: Fixture file (downloaded as an attachment).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Fixture" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/fixtures/import:
+    post:
+      tags: [Fixtures]
+      summary: Import a fixture into an endpoint
+      description: |
+        Each request is recorded in the chosen endpoint as if it had been received
+        there: the endpoint's body limit, the redaction rules, and its mock response
+        apply. Nothing is sent to any destination. Files over 32 MiB, or with more
+        than 1000 requests, are rejected.
+      parameters:
+        - { name: endpoint_id, in: query, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Fixture" }
+      responses:
+        "200":
+          description: Imported.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported: { type: integer }
+                  endpoint_id: { type: integer }
+                  request_ids:
+                    type: array
+                    items: { type: integer }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "422":
+          description: The fixture is invalid (`invalid_fixture`); `details` lists the problems.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/settings:
+    get:
+      tags: [Settings]
+      summary: Get settings
+      description: |
+        `runtime` settings are stored in the database and apply immediately.
+        `server` values come from environment variables and need a restart to change.
+        Secrets such as the dashboard token are never returned.
+      responses:
+        "200":
+          description: Settings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Settings" }
+    patch:
+      tags: [Settings]
+      summary: Update runtime settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SettingsPatch" }
+      responses:
+        "200":
+          description: Updated settings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Settings" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /api/v1/maintenance/cleanup:
+    post:
+      tags: [Settings]
+      summary: Apply the retention policy now
+      responses:
+        "200":
+          description: Number of deleted requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expired: { type: integer, description: Older than the retention period. }
+                  trimmed: { type: integer, description: Over the stored request limit. }
+
+  /api/v1/events:
+    get:
+      tags: [Events]
+      summary: Live updates (Server-Sent Events)
+      description: |
+        Event types: `request.created`, `requests.imported`, `requests.deleted`,
+        `endpoints.changed`, `settings.updated`, and `resync`. Payloads only carry
+        IDs and small metadata. Event IDs have the form `<epoch>-<sequence>`; send
+        `Last-Event-ID` when reconnecting to receive missed events. A `resync`
+        event means missed events could not be replayed and the client should
+        refetch. At most 32 streams can be open at once.
+      parameters:
+        - { name: Last-Event-ID, in: header, schema: { type: string } }
+      responses:
+        "200":
+          description: Event stream.
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "503":
+          description: Too many open streams.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/v1/openapi.yaml:
+    get:
+      tags: [Settings]
+      summary: This document
+      responses:
+        "200":
+          description: OpenAPI description.
+          content:
+            application/yaml:
+              schema: { type: string }
+
+  /api/v1/auth/session:
+    get:
+      tags: [Auth]
+      summary: Session status
+      security: [{}]
+      responses:
+        "200":
+          description: Whether a login is required and whether this client has one.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in with the dashboard token
+      description: Sets an HttpOnly, SameSite=Strict session cookie valid for 7 days. Limited to 10 attempts per minute per client address.
+      security: [{}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        "200":
+          description: Logged in.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401":
+          description: Wrong token (`invalid_token`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Too many attempts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out
+      security: [{}]
+      responses:
+        "204": { description: The session cookie was cleared. }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: relaybox_session
+    bearerToken:
+      type: http
+      scheme: bearer
+      description: The value of RELAYBOX_DASHBOARD_TOKEN.
+
+  parameters:
+    ID:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    PublicID:
+      name: public_id
+      in: path
+      required: true
+      description: The endpoint's 26-character public identifier. Anyone who knows it can send requests to the endpoint.
+      schema: { type: string, pattern: "^[a-z2-7]{26}$" }
+
+  x-capture-operation:
+    tags: [Capture]
+    summary: Send a request to an endpoint
+    description: |
+      Records the request and answers with the endpoint's mock response. Bodies
+      larger than the endpoint's limit get 413 (the first part of the body is
+      kept for inspection). Responses always include
+      `Content-Security-Policy: sandbox; default-src 'none'`.
+    security: [{}]
+    requestBody:
+      required: false
+      content:
+        "*/*":
+          schema: {}
+    responses:
+      "200":
+        description: The configured mock response (any status from 200 to 599).
+      "404":
+        description: No endpoint with this identifier.
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Error" }
+      "405":
+        description: Unsupported method.
+      "413":
+        description: Body larger than the endpoint's limit.
+      "429":
+        description: Rate limit exceeded; see Retry-After.
+      "503":
+        description: The endpoint is disabled (`endpoint_disabled`) or the request could not be stored (`capture_failed`).
+
+  responses:
+    Error:
+      description: Error.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    BadRequest:
+      description: Invalid parameters or malformed JSON.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Not found.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ValidationFailed:
+      description: Validation failed; `fields` maps field names to messages.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooLarge:
+      description: Request body too large.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, examples: [not_found, validation_failed] }
+            message: { type: string }
+            fields:
+              type: object
+              additionalProperties: { type: string }
+            details:
+              type: array
+              items: { type: string }
+
+    MockResponse:
+      type: object
+      description: |
+        The response an endpoint sends. New endpoints created without a
+        mock_response answer 200 with `{"received":true}` as application/json.
+      properties:
+        status: { type: integer, minimum: 200, maximum: 599 }
+        content_type:
+          type: string
+          maxLength: 255
+          description: Sent as Content-Type when there is a body. Empty means text/plain; charset=utf-8. A JSON content type requires a valid JSON body.
+        headers:
+          type: object
+          maxProperties: 32
+          additionalProperties: { type: string, maxLength: 2048 }
+          description: |
+            Extra response headers. Transport headers (Connection, Content-Length,
+            Transfer-Encoding, and similar), Set-Cookie, Content-Security-Policy,
+            Strict-Transport-Security, and the X-Relaybox- prefix are rejected.
+        body: { type: string, maxLength: 65536 }
+        delay_ms: { type: integer, minimum: 0, maximum: 10000 }
+
+    Endpoint:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        enabled: { type: boolean }
+        url: { type: string, description: Full capture URL based on RELAYBOX_PUBLIC_BASE_URL. }
+        public_id: { type: string }
+        mock_response: { $ref: "#/components/schemas/MockResponse" }
+        max_body_bytes: { type: [integer, "null"], description: Per-endpoint limit; null uses the default. }
+        effective_max_body_bytes: { type: integer }
+        request_count: { type: integer }
+        last_request_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    EndpointCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80, description: Unique, compared case-insensitively. }
+        enabled: { type: boolean, default: true }
+        mock_response: { $ref: "#/components/schemas/MockResponse" }
+        max_body_bytes: { type: [integer, "null"] }
+    EndpointUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        enabled: { type: boolean }
+        mock_response: { $ref: "#/components/schemas/MockResponse" }
+        max_body_bytes:
+          type: [integer, "null"]
+          description: A number sets a per-endpoint limit; null returns to the default; leave it out to keep the current value.
+
+    EndpointRef:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    RequestSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        endpoint: { $ref: "#/components/schemas/EndpointRef" }
+        source: { type: string, enum: [capture, import, replay] }
+        replay_of: { type: [integer, "null"] }
+        method: { type: string }
+        path: { type: string, description: Path relative to the endpoint URL. }
+        query_string: { type: string }
+        status: { type: integer, description: Status Relaybox answered with. }
+        duration_ms: { type: number }
+        body_size: { type: integer, description: Bytes received (may exceed the stored part when truncated). }
+        body_truncated: { type: boolean }
+        content_type: { type: string }
+        received_at: { type: string, format: date-time }
+        redacted: { type: boolean }
+    Body:
+      type: object
+      description: |
+        `data` holds UTF-8 text when `encoding` is utf8, otherwise base64. `kind`
+        tells the dashboard how to display it; captured content is never rendered
+        as HTML.
+      properties:
+        encoding: { type: string, enum: [utf8, base64] }
+        data: { type: string }
+        size: { type: integer }
+        stored_bytes: { type: integer }
+        truncated: { type: boolean }
+        kind: { type: string, enum: [empty, json, text, form, multipart, binary] }
+        content_type: { type: string }
+        parse_error: { type: string }
+        form:
+          type: array
+          items: { $ref: "#/components/schemas/Pair" }
+        parts:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              filename: { type: string }
+              content_type: { type: string }
+              size: { type: integer }
+              text: { type: string }
+              headers:
+                type: array
+                items: { $ref: "#/components/schemas/Pair" }
+    Pair:
+      type: array
+      prefixItems: [{ type: string }, { type: string }]
+      minItems: 2
+      maxItems: 2
+    Response:
+      type: object
+      properties:
+        status: { type: integer }
+        status_text: { type: string }
+        headers:
+          type: array
+          items: { $ref: "#/components/schemas/Pair" }
+        body: { $ref: "#/components/schemas/Body" }
+    Redaction:
+      type: object
+      properties:
+        location: { type: string, enum: [header, query, body] }
+        name: { type: string, description: Header name, query key, form field, or JSON path such as $.user.password. }
+    RequestDetail:
+      allOf:
+        - $ref: "#/components/schemas/RequestSummary"
+        - type: object
+          properties:
+            url: { type: string }
+            query:
+              type: array
+              items: { $ref: "#/components/schemas/Pair" }
+            headers:
+              type: array
+              items: { $ref: "#/components/schemas/Pair" }
+            body: { $ref: "#/components/schemas/Body" }
+            content_length: { type: [integer, "null"] }
+            remote_addr: { type: string }
+            response: { $ref: "#/components/schemas/Response" }
+            redactions:
+              type: array
+              items: { $ref: "#/components/schemas/Redaction" }
+            replay_children:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  endpoint: { $ref: "#/components/schemas/EndpointRef" }
+                  status: { type: integer }
+                  received_at: { type: string, format: date-time }
+
+    ReplayDraft:
+      type: object
+      properties:
+        request: { $ref: "#/components/schemas/RequestSummary" }
+        method: { type: string }
+        headers:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              value: { type: string }
+              selected: { type: boolean }
+              redacted: { type: boolean }
+              blocked: { type: string, description: Why the header can never be forwarded. }
+        body: { $ref: "#/components/schemas/Body" }
+        url_replay_enabled: { type: boolean }
+        allowed_hosts:
+          type: array
+          items: { type: string }
+        max_body_bytes: { type: integer }
+    ReplayInput:
+      type: object
+      required: [target]
+      properties:
+        target: { type: string, enum: [url, endpoint] }
+        url: { type: string, description: Required for target=url. }
+        endpoint_id: { type: integer, description: Required for target=endpoint. }
+        confirmed: { type: boolean, description: Must be true for target=url. }
+        method: { type: string, description: Defaults to the original method. }
+        headers:
+          type: array
+          description: Headers to send. Leave out to send the default selection.
+          items: { $ref: "#/components/schemas/Pair" }
+        body:
+          type: object
+          description: Body to send. Leave out to send the stored body.
+          properties:
+            encoding: { type: string, enum: [utf8, base64], default: utf8 }
+            data: { type: string }
+    ReplayAttempt:
+      type: object
+      properties:
+        id: { type: integer }
+        request_id: { type: integer }
+        target: { type: string, enum: [url, endpoint] }
+        destination: { type: string, description: URL without query string, or endpoint name. }
+        destination_host: { type: string }
+        target_endpoint_id: { type: [integer, "null"] }
+        result_request_id: { type: [integer, "null"] }
+        method: { type: string }
+        response_status: { type: [integer, "null"] }
+        response_size: { type: [integer, "null"] }
+        duration_ms: { type: number }
+        outcome: { type: string, enum: [success, failure] }
+        summary: { type: string }
+        created_at: { type: string, format: date-time }
+    ReplayResult:
+      type: object
+      properties:
+        attempt: { $ref: "#/components/schemas/ReplayAttempt" }
+        response:
+          oneOf:
+            - $ref: "#/components/schemas/Response"
+            - type: "null"
+        created_request_id: { type: [integer, "null"] }
+
+    Comparison:
+      type: object
+      properties:
+        part: { type: string, enum: [request, response] }
+        left: { $ref: "#/components/schemas/RequestSummary" }
+        right: { $ref: "#/components/schemas/RequestSummary" }
+        body:
+          type: object
+          properties:
+            mode: { type: string, enum: [json, text, binary, empty] }
+            equal: { type: boolean }
+            left_error: { type: string }
+            right_error: { type: string }
+            differences:
+              type: array
+              items: { $ref: "#/components/schemas/Difference" }
+            lines:
+              type: array
+              items:
+                type: object
+                properties:
+                  op: { type: string, enum: [equal, insert, delete] }
+                  text: { type: string }
+                  left: { type: integer }
+                  right: { type: integer }
+            truncated: { type: boolean }
+            approximate: { type: boolean }
+            incomplete_data: { type: boolean }
+            note: { type: string }
+        headers:
+          type: array
+          items: { $ref: "#/components/schemas/Difference" }
+    Difference:
+      type: object
+      properties:
+        path: { type: string, examples: ["$.data.items[0].id"] }
+        kind: { type: string, enum: [added, removed, changed] }
+        left: { type: string }
+        right: { type: string }
+
+    Fixture:
+      type: object
+      description: See api/fixture.schema.json for the full rules.
+      required: [format, version, requests]
+      properties:
+        format: { type: string, const: relaybox.fixture }
+        version: { type: integer, const: 1 }
+        exported_at: { type: string, format: date-time }
+        generator: { type: string }
+        notice: { type: string }
+        requests:
+          type: array
+          items:
+            type: object
+            required: [method, path, headers]
+            properties:
+              method: { type: string }
+              path: { type: string }
+              query: { type: string }
+              headers:
+                type: array
+                items: { $ref: "#/components/schemas/Pair" }
+              body:
+                type: object
+                properties:
+                  encoding: { type: string, enum: [utf8, base64] }
+                  data: { type: string }
+                  truncated: { type: boolean }
+              body_omitted: { type: boolean }
+              received_at: { type: string, format: date-time }
+              endpoint: { type: string }
+              redactions:
+                type: array
+                items: { $ref: "#/components/schemas/Redaction" }
+
+    RuntimeSettings:
+      type: object
+      properties:
+        retention_days: { type: integer, minimum: 0, maximum: 3650, description: 0 keeps requests forever. }
+        max_stored_requests: { type: integer, minimum: 0, description: 0 means no limit. }
+        default_max_body_bytes: { type: integer }
+        redact_headers:
+          type: array
+          maxItems: 100
+          items: { type: string }
+        redact_fields:
+          type: array
+          maxItems: 100
+          items: { type: string }
+    SettingsPatch:
+      type: object
+      properties:
+        retention_days: { type: integer }
+        max_stored_requests: { type: integer }
+        default_max_body_bytes: { type: integer }
+        redact_headers:
+          type: array
+          items: { type: string }
+        redact_fields:
+          type: array
+          items: { type: string }
+        reset:
+          type: array
+          description: Setting keys to return to their environment defaults.
+          items:
+            type: string
+            enum: [retention_days, max_stored_requests, default_max_body_bytes, redact_headers, redact_fields]
+    Settings:
+      type: object
+      properties:
+        runtime: { $ref: "#/components/schemas/RuntimeSettings" }
+        defaults: { $ref: "#/components/schemas/RuntimeSettings" }
+        overridden:
+          type: array
+          items: { type: string }
+        limits:
+          type: object
+          additionalProperties: { type: integer }
+        server:
+          type: object
+          description: Values from environment variables. Changing them needs a restart.
+          additionalProperties: true
+
+    Meta:
+      type: object
+      properties:
+        name: { type: string }
+        version: { type: string }
+        commit: { type: string }
+        build_date: { type: string }
+        public_base_url: { type: string }
+        hook_url_prefix: { type: string }
+        auth_required: { type: boolean }
+        remote_dashboard: { type: boolean }
+        url_replay_enabled: { type: boolean }
+        allowed_methods:
+          type: array
+          items: { type: string }
+        mock_defaults: { $ref: "#/components/schemas/MockResponse" }
+        limits:
+          type: object
+          additionalProperties: { type: integer }
+    Stats:
+      type: object
+      properties:
+        total_requests: { type: integer }
+        last_24h: { type: integer }
+        endpoints: { type: integer }
+        status_classes:
+          type: object
+          additionalProperties: { type: integer }
+        hourly:
+          type: array
+          items:
+            type: object
+            properties:
+              start: { type: string, format: date-time }
+              count: { type: integer }
+        top_endpoints:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              enabled: { type: boolean }
+              last_24h: { type: integer }
+              total: { type: integer }
+              last_request_at: { type: [string, "null"], format: date-time }
+        recent:
+          type: array
+          items: { $ref: "#/components/schemas/RequestSummary" }
+    Session:
+      type: object
+      properties:
+        auth_required: { type: boolean }
+        authenticated: { type: boolean }

@@ -1,0 +1,40 @@
+# Runs Relaybox in a container, reachable only from this machine.
+#
+# Inside a container the dashboard sees connections from the Docker network,
+# not from loopback, so it runs in remote-dashboard mode and asks for a token.
+# The port is still published on 127.0.0.1 only.
+#
+#   cp .env.example .env      # then set RELAYBOX_DASHBOARD_TOKEN
+#   docker compose up -d --build
+#   open http://127.0.0.1:8787 and sign in with the token
+services:
+  relaybox:
+    build:
+      context: .
+    image: relaybox:local
+    ports:
+      - "127.0.0.1:${RELAYBOX_HOST_PORT:-8787}:8787"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Fixed for the container; other RELAYBOX_* settings come from .env.
+      RELAYBOX_HOST: 0.0.0.0
+      RELAYBOX_PORT: "8787"
+      RELAYBOX_DATABASE_PATH: /data/relaybox.db
+      RELAYBOX_ALLOW_REMOTE_DASHBOARD: "true"
+      RELAYBOX_DASHBOARD_TOKEN: ${RELAYBOX_DASHBOARD_TOKEN:?Set RELAYBOX_DASHBOARD_TOKEN in .env (at least 24 characters)}
+      RELAYBOX_PUBLIC_BASE_URL: ${RELAYBOX_PUBLIC_BASE_URL:-http://127.0.0.1:8787}
+    volumes:
+      - relaybox-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  relaybox-data:

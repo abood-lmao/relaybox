@@ -1,0 +1,209 @@
+@import "tailwindcss";
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+  Palette. The sidebar stays charcoal in both themes; the work area flips.
+  Status colors are muted so a page full of 2xx rows stays calm and a 5xx
+  still stands out.
+*/
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #eef0f3;
+  --line: #dde1e6;
+  --line-strong: #c6ccd4;
+  --fg: #1b2027;
+  --muted: #586271;
+  --faint: #868f9b;
+  --accent: #2c62d6;
+  --accent-hover: #2453ba;
+  --accent-soft: #e7eefb;
+  --accent-fg: #2457c4;
+  --ok: #1d7f54;
+  --warn: #a8690f;
+  --err: #c0362e;
+  --redirect: #4f67a3;
+  --hatch: rgb(88 98 113 / 0.18);
+  --hatch-line: #a3abb6;
+
+  --sidebar: #1b1e23;
+  --sidebar-raised: #23272d;
+  --sidebar-line: #2d3138;
+  --sidebar-fg: #c9ced6;
+  --sidebar-muted: #8a929d;
+  --sidebar-active: #2c323b;
+
+  --code-key: #1f55b8;
+  --code-string: #1d6b45;
+  --code-number: #9a4d0d;
+  --code-keyword: #8a3ca8;
+  --code-punct: #6b7480;
+
+  --m-get: #1d7268;
+  --m-post: #2457c4;
+  --m-put: #9a6200;
+  --m-patch: #7b44a8;
+  --m-delete: #b8352d;
+  --m-other: #5f6875;
+}
+
+.dark {
+  --bg: #111317;
+  --surface: #171a1f;
+  --surface-2: #1d2127;
+  --line: #292e35;
+  --line-strong: #363c45;
+  --fg: #e2e6eb;
+  --muted: #9aa3ad;
+  --faint: #6c7581;
+  --accent: #4b7fe6;
+  --accent-hover: #5d8def;
+  --accent-soft: #1a2741;
+  --accent-fg: #8db1f6;
+  --ok: #45b083;
+  --warn: #d6a03e;
+  --err: #ec6a61;
+  --redirect: #8ea3d8;
+  --hatch: rgb(154 163 173 / 0.16);
+  --hatch-line: #59616b;
+
+  --sidebar: #0d0f12;
+  --sidebar-raised: #15181c;
+  --sidebar-line: #20242a;
+  --sidebar-fg: #c9ced6;
+  --sidebar-muted: #7b838e;
+  --sidebar-active: #1e232a;
+
+  --code-key: #8db1f6;
+  --code-string: #7cc89f;
+  --code-number: #e0a46a;
+  --code-keyword: #c79be3;
+  --code-punct: #7f8893;
+
+  --m-get: #5cc0b2;
+  --m-post: #8db1f6;
+  --m-put: #e0b15a;
+  --m-patch: #c79be3;
+  --m-delete: #ef7d74;
+  --m-other: #9aa3ad;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-fg: var(--accent-fg);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-err: var(--err);
+  --color-redirect: var(--redirect);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-raised: var(--sidebar-raised);
+  --color-sidebar-line: var(--sidebar-line);
+  --color-sidebar-fg: var(--sidebar-fg);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-code-key: var(--code-key);
+  --color-code-string: var(--code-string);
+  --color-code-number: var(--code-number);
+  --color-code-keyword: var(--code-keyword);
+  --color-code-punct: var(--code-punct);
+  --color-m-get: var(--m-get);
+  --color-m-post: var(--m-post);
+  --color-m-put: var(--m-put);
+  --color-m-patch: var(--m-patch);
+  --color-m-delete: var(--m-delete);
+  --color-m-other: var(--m-other);
+
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-bg font-sans text-sm text-fg antialiased;
+    font-feature-settings: "tnum" 0;
+  }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--fg);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  code,
+  kbd,
+  pre,
+  samp {
+    @apply font-mono;
+  }
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+  dialog::backdrop {
+    background: rgb(10 12 15 / 0.55);
+  }
+}
+
+@layer components {
+  /*
+    Redaction mark. Values removed before storage get the same hatched chip
+    wherever they appear: header tables, the JSON tree, the raw request, and
+    form fields.
+  */
+  .redacted {
+    @apply rounded-[3px] px-1 font-mono text-[0.92em] text-muted;
+    background-image: repeating-linear-gradient(-45deg, var(--hatch) 0 3px, transparent 3px 6px);
+    box-shadow: inset 0 0 0 1px var(--hatch-line);
+  }
+
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+
+  /* Rows for requests that arrived while the page was open. */
+  .row-new {
+    animation: row-new 2.4s ease-out;
+  }
+}
+
+@keyframes row-new {
+  from {
+    background-color: var(--accent-soft);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "evt_example_0001",
+  "type": "payment.succeeded",
+  "created": 1760090000,
+  "data": {
+    "payment": {
+      "id": "pay_example_8813",
+      "amount": 5999,
+      "currency": "usd",
+      "customer": "cus_example_001",
+      "client_secret": "pay_example_8813_secret_do_not_store",
+      "card": { "brand": "visa", "last4": "4242", "exp_month": 12, "exp_year": 2030 },
+      "metadata": { "order_id": "ord_1042", "ledger_id": 9007199254740995 }
+    }
+  }
+}

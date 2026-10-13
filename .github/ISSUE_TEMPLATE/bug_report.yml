@@ -1,0 +1,56 @@
+name: Bug report
+description: Something in Relaybox does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Please do not paste real secrets,
+        tokens, or personal data from captured requests. For security problems, follow
+        SECURITY.md instead of opening a public issue.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: A curl command or a small fixture file helps a lot. Remove anything sensitive first.
+      placeholder: |
+        1. Create an endpoint
+        2. curl -X POST ...
+        3. Open the request
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Relaybox version
+      description: Output of `relaybox version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How do you run it
+      options:
+        - Binary built from source
+        - Docker or Docker Compose
+        - Development mode (make dev or scripts/dev.ps1)
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and browser
+      placeholder: Ubuntu 24.04, Firefox 140
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Server log lines around the problem. Relaybox does not log payloads, but check before pasting.
+      render: text

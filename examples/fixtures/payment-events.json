@@ -1,0 +1,74 @@
+{
+  "format": "relaybox.fixture",
+  "version": 1,
+  "exported_at": "2026-10-10T09:30:00Z",
+  "generator": "relaybox examples",
+  "notice": "Made-up sample data for trying out Relaybox.",
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/payments",
+      "query": "attempt=1",
+      "headers": [
+        ["Content-Type", "application/json"],
+        ["User-Agent", "ExamplePayments/2.1"],
+        ["Webhook-Id", "evt_example_0001"],
+        ["Webhook-Signature", "t=1760090000,v1=3f1c8a0d9b7e6c5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a"]
+      ],
+      "body": {
+        "encoding": "utf8",
+        "data": "{\"id\":\"evt_example_0001\",\"type\":\"payment.succeeded\",\"created\":1760090000,\"data\":{\"payment\":{\"id\":\"pay_example_8813\",\"amount\":5999,\"currency\":\"usd\",\"customer\":\"cus_example_001\",\"client_secret\":\"[REDACTED]\",\"metadata\":{\"order_id\":\"ord_1042\",\"ledger_id\":9007199254740995}}}}"
+      },
+      "received_at": "2026-10-10T09:13:20Z",
+      "redactions": [{ "location": "body", "name": "$.data.payment.client_secret" }]
+    },
+    {
+      "method": "POST",
+      "path": "/payments",
+      "query": "attempt=1",
+      "headers": [
+        ["Content-Type", "application/json"],
+        ["User-Agent", "ExamplePayments/2.1"],
+        ["Webhook-Id", "evt_example_0002"],
+        ["Webhook-Signature", "t=1760090420,v1=9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b"]
+      ],
+      "body": {
+        "encoding": "utf8",
+        "data": "{\"id\":\"evt_example_0002\",\"type\":\"payment.failed\",\"created\":1760090420,\"data\":{\"payment\":{\"id\":\"pay_example_8814\",\"amount\":2500,\"currency\":\"usd\",\"customer\":\"cus_example_002\",\"failure\":{\"code\":\"card_declined\",\"message\":\"The card was declined.\"},\"metadata\":{\"order_id\":\"ord_1043\"}}}}"
+      },
+      "received_at": "2026-10-10T09:20:20Z"
+    },
+    {
+      "method": "POST",
+      "path": "/payments",
+      "query": "attempt=2",
+      "headers": [
+        ["Content-Type", "application/json"],
+        ["User-Agent", "ExamplePayments/2.1"],
+        ["Webhook-Id", "evt_example_0002"],
+        ["Webhook-Signature", "t=1760090720,v1=0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0"]
+      ],
+      "body": {
+        "encoding": "utf8",
+        "data": "{\"id\":\"evt_example_0002\",\"type\":\"payment.failed\",\"created\":1760090420,\"data\":{\"payment\":{\"id\":\"pay_example_8814\",\"amount\":2500,\"currency\":\"usd\",\"customer\":\"cus_example_002\",\"failure\":{\"code\":\"card_declined\",\"message\":\"The card was declined.\"},\"metadata\":{\"order_id\":\"ord_1043\"}}}}"
+      },
+      "received_at": "2026-10-10T09:25:20Z"
+    },
+    {
+      "method": "POST",
+      "path": "/payments",
+      "query": "attempt=1",
+      "headers": [
+        ["Content-Type", "application/json"],
+        ["User-Agent", "ExamplePayments/2.1"],
+        ["Webhook-Id", "evt_example_0003"],
+        ["Webhook-Signature", "t=1760090900,v1=5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b"]
+      ],
+      "body": {
+        "encoding": "utf8",
+        "data": "{\"id\":\"evt_example_0003\",\"type\":\"refund.created\",\"created\":1760090900,\"data\":{\"refund\":{\"id\":\"re_example_0007\",\"payment\":\"pay_example_8813\",\"amount\":1000,\"currency\":\"usd\",\"reason\":\"requested_by_customer\"}}}"
+      },
+      "received_at": "2026-10-10T09:28:20Z"
+    }
+  ]
+}

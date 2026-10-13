@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Check formatting
+        run: |
+          unformatted="$(gofmt -l cmd internal api)"
+          if [ -n "$unformatted" ]; then
+            echo "Run gofmt on:"; echo "$unformatted"; exit 1
+          fi
+      - name: Check go.mod is tidy
+        run: go mod tidy -diff
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test -race -count=1 ./...
+
+  web:
+    name: Dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dashboard
+          path: internal/webui/static/dist
+          retention-days: 3
+
+  binary:
+    name: Binary with dashboard
+    needs: [go, web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dashboard
+          path: internal/webui/static/dist
+      - name: Build
+        env:
+          CGO_ENABLED: "0"
+        run: go build -trimpath -ldflags "-s -w -X github.com/abood-lmao/relaybox/internal/version.Version=ci-${GITHUB_SHA::12}" -o bin/relaybox ./cmd/relaybox
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          export RELAYBOX_DATABASE_PATH="$RUNNER_TEMP/relaybox.db"
+          base=http://127.0.0.1:18787
+          total() { python3 -c 'import json,sys; print(json.load(sys.stdin)["total"])'; }
+          ./bin/relaybox doctor --port 18787
+          ./bin/relaybox serve --port 18787 &
+          pid=$!
+          for i in $(seq 1 30); do ./bin/relaybox healthcheck --url "$base/healthz" && break; sleep 0.5; done
+          curl -fsS "$base/" | grep -q '<div id="root">'
+          id=$(curl -fsS -X POST -H 'Content-Type: application/json' -d '{"name":"CI"}' "$base/api/v1/endpoints" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["public_id"])')
+          curl -fsS -X POST -H 'Content-Type: application/json' -d '{"event":"ci","password":"hunter2"}' "$base/hooks/$id/ci"
+          test "$(curl -fsS "$base/api/v1/requests?q=ci" | total)" = 1
+          # The password was redacted before storage, so it cannot be found.
+          test "$(curl -fsS "$base/api/v1/requests?q=hunter2" | total)" = 0
+          kill "$pid"
+
+  docker:
+    name: Container image
+    needs: [go, web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: false
+          load: true
+          tags: relaybox:ci
+      - name: Run the image
+        run: |
+          set -euo pipefail
+          docker run -d --name relaybox -p 127.0.0.1:18787:8787 \
+            -e RELAYBOX_ALLOW_REMOTE_DASHBOARD=true \
+            -e RELAYBOX_DASHBOARD_TOKEN=ci-token-that-is-long-enough-123 \
+            relaybox:ci
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:18787/healthz && break; sleep 1; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18787/api/v1/meta)" = 401
+          curl -fsS -H 'Authorization: Bearer ci-token-that-is-long-enough-123' http://127.0.0.1:18787/api/v1/meta
+          docker rm -f relaybox

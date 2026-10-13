@@ -1,0 +1,16 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+bin
+data
+dist
+coverage
+*.db
+*.db-shm
+*.db-wal
+docs/screenshots
+web/node_modules
+web/coverage
+internal/webui/static/dist

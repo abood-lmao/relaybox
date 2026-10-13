@@ -1,0 +1,1 @@
+MessageId=SM_example_01&MessageStatus=delivered&To=%2B15555550100&From=%2B15555550199&ErrorCode=&token=example-form-token

@@ -1,0 +1,22 @@
+{
+  "ref": "refs/heads/main",
+  "before": "6113728f27ae82c7b1a177c8d03f9e96e0adf246",
+  "after": "59b20b8d5c6ff8d09518454d4dd8b7a30f095ab5",
+  "repository": {
+    "id": 1296269,
+    "full_name": "example-org/example-repo",
+    "private": false,
+    "default_branch": "main"
+  },
+  "pusher": { "name": "octo-example", "email": "octo@example.com" },
+  "commits": [
+    {
+      "id": "59b20b8d5c6ff8d09518454d4dd8b7a30f095ab5",
+      "message": "Fix retry delay for failed deliveries",
+      "timestamp": "2026-10-10T09:14:03Z",
+      "added": [],
+      "removed": [],
+      "modified": ["internal/delivery/retry.go"]
+    }
+  ]
+}
