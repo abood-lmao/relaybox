@@ -4,7 +4,6 @@
 
 Relaybox is a self-hosted tool for debugging webhooks. Create an endpoint, point a service at its URL, and every request that arrives is stored with its headers, query string, and body. You can then inspect it in a local dashboard, search it, compare it with another request, and replay it to your own code. It runs as a single binary with an embedded dashboard and a SQLite database, and it only listens on `127.0.0.1` by default.
 
-> Relaybox is a working name. Trademark and domain availability have not been checked.
 
 ## Contents
 

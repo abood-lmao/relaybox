@@ -8,10 +8,11 @@ Relaybox has not had a stable release yet. Until 1.0, security fixes go into the
 
 Please do not open a public issue for security problems.
 
-Report it privately through GitHub's private vulnerability reporting: open the repository's **Security** tab and choose **Report a vulnerability**.
+Report it privately to the maintainer, [@abood-lmao](https://github.com/abood-lmao), through GitHub private vulnerability reporting:
 
-> **Maintainer placeholder:** private vulnerability reporting must be enabled in the repository settings before publishing, and a monitored security contact should be added here. No contact address has been set up yet.
-> `SECURITY CONTACT: <add a monitored address or remove this line>`
+<https://github.com/abood-lmao/relaybox/security/advisories/new>
+
+That form goes only to the repository owner. It stays off the public issue list.
 
 Please include:
 
