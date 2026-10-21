@@ -10,7 +10,7 @@ COPY web/ ./
 RUN mkdir -p /src/internal/webui/static && npm run build
 
 # 2. Binary
-FROM golang:1.26-alpine AS build
+FROM golang:1.27-alpine AS build
 WORKDIR /src
 ENV CGO_ENABLED=0 GOTOOLCHAIN=auto
 COPY go.mod go.sum ./
